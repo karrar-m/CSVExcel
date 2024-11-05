@@ -1,7 +1,6 @@
 ﻿using CSVExcel.Interface;
 using CSVExcel.Model.Employee;
 using OfficeOpenXml;
-using System.Globalization;
 
 namespace CSVExcel.Service
 {
@@ -17,14 +16,13 @@ namespace CSVExcel.Service
 
         public async Task<bool> ExcelEmployee(IFormFile file)
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
             if (file == null || file.Length == 0)
                 throw new ArgumentNullException(nameof(file), "File is invalid");
 
             var employees = await ProcessEmployeeFile(file);
 
-            if (employees != null && employees.Count > 0) // تحقق من وجود موظفين
+            if (employees != null && employees.Count > 0) 
             {
                 await _validation.ValidateEmployeesAsync(employees);
 

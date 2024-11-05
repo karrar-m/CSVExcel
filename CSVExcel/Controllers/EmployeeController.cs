@@ -6,17 +6,12 @@ namespace CSVExcel.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class EmployeeController : ControllerBase
+    public class EmployeeController(IEmployeeService employeeService) : ControllerBase
     {
-        private readonly IEmployeeService _employeeService;
-
-        public EmployeeController(IEmployeeService employeeService)
-        {
-            _employeeService = employeeService;
-        }
+        private readonly IEmployeeService _employeeService = employeeService;
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadEmployeeFile(IFormFile file)
+        public async Task<ActionResult> UploadEmployeeFile(IFormFile file)
         {
             try
             {

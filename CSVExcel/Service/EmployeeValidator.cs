@@ -1,6 +1,7 @@
 ﻿using CSVExcel.Exceptions;
 using CSVExcel.Model.Employee;
 using FluentValidation;
+using Swashbuckle.AspNetCore.Swagger;
 using System.Text.RegularExpressions;
 
 namespace CSVExcel.Service;
@@ -15,7 +16,7 @@ public class EmployeeValidator : AbstractValidator<Employee>
 
         RuleFor(emp => emp.LastName)
             .NotEmpty().WithMessage("الاسم الثاني مطلوب.")
-            .Must(BeAvalidName).WithMessage("الاسم الأول لا يقبل أرقام أو رموز.");
+            .Must(BeAvalidName).WithMessage("الاسم الثاني لا يقبل أرقام أو رموز.");
 
         RuleFor(emp => emp.ThirdName)
            .NotEmpty().WithMessage("الاسم الثالث مطلوب.")
@@ -33,6 +34,7 @@ public class EmployeeValidator : AbstractValidator<Employee>
         RuleFor(emp => emp.Education)
             .Must(e =>
                 e == "أمي" ||
+                e == "يقرأ ويكتب" ||
                 e == "ابتدائي" ||
                 e == "متوسط" ||
                 e == "ثانوي" ||
@@ -42,12 +44,14 @@ public class EmployeeValidator : AbstractValidator<Employee>
                 e == "دكتوراه").WithMessage("مستوى التعليم غير صالح.");
 
         RuleFor(emp => emp.HiringType)
-          .Must(et =>
-              et == "دائمي" ||
-              et == "مؤقت" ||
-              et == "استشاري" ||
-              et == "حكومي" ||
-              et == "مجاز 5 سنين").WithMessage("نوع التعيين غير صالح.");
+     .Must(et =>
+         et == "دائمي" ||
+        et == "مؤقت" ||
+        et == "استشاري" ||
+        et == "(حكومي (مجاز 5 سنين"
+     )
+     .WithMessage("نوع التعيين غير صالح.");
+
 
         RuleFor(emp => emp.MonthlySalary)
             .Must(BeAvalidSalary)
@@ -73,6 +77,7 @@ public class EmployeeValidator : AbstractValidator<Employee>
 
     private bool BeAvalidSalary(decimal salary)
     {
+        String[] currencies = { "USD", "IQD" };
         return salary >= 266 || salary >= 350000;
     }
     public async Task ValidateEmployeesAsync(List<Employee> employees)
