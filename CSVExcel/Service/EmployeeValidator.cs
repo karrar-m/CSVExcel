@@ -95,8 +95,6 @@ public class EmployeeValidator : AbstractValidator<Employee>
                     errors.Add($"خطأ في الصف {row+ 1}: {error.ErrorMessage}"); 
 
                 }
-           
-
         }
 
         if (errors.Any())

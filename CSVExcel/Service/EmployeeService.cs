@@ -15,63 +15,54 @@ namespace CSVExcel.Service
 
         }
 
-        public async Task<bool> ExcelEmployee(IFormFile file ,CancellationToken cancellationToken)
+        public async Task<bool> ExcelEmployee(IFormFile file, CancellationToken cancellationToken)
         {
+                ValidateFile(file); 
+            var employees = await ProcessEmployeeFile(file, cancellationToken);
 
-            if (file == null || file.Length == 0)
-                throw new ArgumentNullException(nameof(file), "File is invalid");
-
-            if (!IsExcelFile(file.FileName))
+            if (employees != null && employees.Count > 0) 
             {
-                var errors = new List<string> { "The file is not a valid Excel file." };
-                throw new ExcelException("Excel file validation failed.", errors);
-            }
+                await _validation.ValidateEmployeesAsync(employees, cancellationToken);
 
-            var employees = await ProcessEmployeeFile(file , cancellationToken);
-
-            if (employees != null && employees.Count > 0) // تحقق من وجود موظفين
-            {
-                await _validation.ValidateEmployeesAsync(employees , cancellationToken);
-
-                // await _dbContext.Employees.AddRangeAsync(employees);
+               // await _dbContext.Employees.AddRangeAsync(employees);
                 // await _dbContext.SaveChangesAsync();
 
-                return true;     
+                return true;
             }
 
-            return false; 
+            return false;
         }
 
 
         private async Task<List<Employee>> ProcessEmployeeFile(IFormFile file, CancellationToken cancellationToken)
         {
 
-
             var employees = new List<Employee>();
-
             using var stream = new MemoryStream();
             await file.CopyToAsync(stream);
             stream.Position = 0; 
-
             using var workbook = new XLWorkbook(stream);
             var worksheet = workbook.Worksheet(1);
-            int? rowCount = worksheet.LastRowUsed()?.RowNumber(); 
+            employees = await ParseAddEmployeeAsync (worksheet , cancellationToken);   
+            return employees;
+        }
 
+        private Task<List<Employee>> ParseAddEmployeeAsync(IXLWorksheet worksheet, CancellationToken cancellationToken)
+        {
+            var employees = new List<Employee>();
+            int? rowCount = worksheet.LastRowUsed()?.RowNumber();
+            cancellationToken.ThrowIfCancellationRequested();
 
-            for (int row = 2; row <= rowCount; row++) 
+            for (int row = 2; row <= rowCount; row++)
             {
-                 cancellationToken.ThrowIfCancellationRequested();  
-
-                var employee = ParseEmployeeFromRow(worksheet, row , cancellationToken);
+                var employee = ParseEmployeeFromRow(worksheet, row, cancellationToken);
                 if (employee != null)
                 {
                     employees.Add(employee);
                 }
             }
-
-            return employees;
+            return Task.FromResult(employees);
         }
-
         private Employee ParseEmployeeFromRow(IXLWorksheet worksheet, int row ,CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -98,6 +89,17 @@ namespace CSVExcel.Service
                 MonthlySalary = TryParseDecimal(worksheet.Cell(row, 18).GetString()),
                 Allowances = TryParseDecimal(worksheet.Cell(row, 19).GetString()),
             };
+        }
+        private void ValidateFile(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                throw new ArgumentNullException(nameof(file), "File is invalid");
+
+            if (!IsExcelFile(file.FileName))
+            {
+                var errors = new List<string> { "The file is not a valid Excel file." };
+                throw new ExcelException("Excel file validation failed.", errors);
+            }
         }
 
         private decimal TryParseDecimal(string decimalText)
