@@ -77,17 +77,26 @@ public class EmployeeValidator : AbstractValidator<Employee>
 
     private bool BeAvalidSalary(decimal salary)
     {
-        String[] currencies = { "USD", "IQD" };
         return salary >= 266 || salary >= 350000;
     }
-    public async Task ValidateEmployeesAsync(List<Employee> employees)
+    public async Task ValidateEmployeesAsync(List<Employee> employees , CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();   
         var errors = new List<string>();
 
-        foreach (var employee in employees)
+        for ( int row = 0; row < employees.Count; row++)
         {
+            var employee = employees[row];  
             var validationResult = await ValidateAsync(employee);
             errors.AddRange(validationResult.Errors.Select(e => e.ErrorMessage));
+
+                foreach (var error in validationResult.Errors) {
+
+                    errors.Add($"خطأ في الصف {row+ 1}: {error.ErrorMessage}"); 
+
+                }
+           
+
         }
 
         if (errors.Any())

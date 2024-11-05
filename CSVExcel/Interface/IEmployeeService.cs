@@ -4,5 +4,5 @@ namespace CSVExcel.Interface;
 
 public interface IEmployeeService
 {
-    Task<bool> ExcelEmployee (IFormFile file);
+    Task<bool> ExcelEmployee (IFormFile file , CancellationToken cancellationToken);
 }

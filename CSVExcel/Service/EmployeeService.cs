@@ -1,6 +1,7 @@
-﻿using CSVExcel.Interface;
+﻿using ClosedXML.Excel;
+using CSVExcel.Exceptions;
+using CSVExcel.Interface;
 using CSVExcel.Model.Employee;
-using OfficeOpenXml;
 
 namespace CSVExcel.Service
 {
@@ -14,17 +15,23 @@ namespace CSVExcel.Service
 
         }
 
-        public async Task<bool> ExcelEmployee(IFormFile file)
+        public async Task<bool> ExcelEmployee(IFormFile file ,CancellationToken cancellationToken)
         {
 
             if (file == null || file.Length == 0)
                 throw new ArgumentNullException(nameof(file), "File is invalid");
 
-            var employees = await ProcessEmployeeFile(file);
-
-            if (employees != null && employees.Count > 0) 
+            if (!IsExcelFile(file.FileName))
             {
-                await _validation.ValidateEmployeesAsync(employees);
+                var errors = new List<string> { "The file is not a valid Excel file." };
+                throw new ExcelException("Excel file validation failed.", errors);
+            }
+
+            var employees = await ProcessEmployeeFile(file , cancellationToken);
+
+            if (employees != null && employees.Count > 0) // تحقق من وجود موظفين
+            {
+                await _validation.ValidateEmployeesAsync(employees , cancellationToken);
 
                 // await _dbContext.Employees.AddRangeAsync(employees);
                 // await _dbContext.SaveChangesAsync();
@@ -35,52 +42,64 @@ namespace CSVExcel.Service
             return false; 
         }
 
-        private async Task<List<Employee>> ProcessEmployeeFile(IFormFile file)
+
+        private async Task<List<Employee>> ProcessEmployeeFile(IFormFile file, CancellationToken cancellationToken)
         {
+
+
             var employees = new List<Employee>();
 
             using var stream = new MemoryStream();
             await file.CopyToAsync(stream);
-            using var package = new ExcelPackage(stream);
-            var worksheet = package.Workbook.Worksheets[0];
-            int rowCount = worksheet.Dimension.Rows;
+            stream.Position = 0; 
 
-            for (int row = 2; row <= rowCount; row++)
+            using var workbook = new XLWorkbook(stream);
+            var worksheet = workbook.Worksheet(1);
+            int? rowCount = worksheet.LastRowUsed()?.RowNumber(); 
+
+
+            for (int row = 2; row <= rowCount; row++) 
             {
-                var employee = ParseEmployeeFromRow(worksheet, row);
+                 cancellationToken.ThrowIfCancellationRequested();  
+
+                var employee = ParseEmployeeFromRow(worksheet, row , cancellationToken);
                 if (employee != null)
                 {
                     employees.Add(employee);
                 }
             }
+
             return employees;
         }
 
-        private Employee ParseEmployeeFromRow(ExcelWorksheet worksheet, int row)
+        private Employee ParseEmployeeFromRow(IXLWorksheet worksheet, int row ,CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             return new Employee
             {
-                FirstName = worksheet.Cells[row, 1].Text.Trim(),
-                SecondName = worksheet.Cells[row, 2].Text.Trim(),
-                ThirdName = worksheet.Cells[row, 3].Text.Trim(),
-                ForthName = worksheet.Cells[row, 4].Text.Trim(),
-                LastName = worksheet.Cells[row, 5].Text.Trim(),
-                MotherName = worksheet.Cells[row, 6].Text.Trim(),
-                Gender = worksheet.Cells[row, 7].Text.Trim(),
-                DateOfBirth = ParseDate(worksheet.Cells[row, 8].Text) ?? DateTime.MinValue,
-                Nationality = worksheet.Cells[row, 9].Text.Trim(),
-                JobService = worksheet.Cells[row, 10].Text.Trim(),
-                Education = worksheet.Cells[row, 11].Text.Trim(),
-                Country = worksheet.Cells[row, 12].Text.Trim(),
-                Address = worksheet.Cells[row, 13].Text.Trim(),
-                HiringDate = ParseDate(worksheet.Cells[row, 14].Text) ?? DateTime.MinValue,
-                HiringType = worksheet.Cells[row, 15].Text.Trim(),
-                WorkplaceAddress = worksheet.Cells[row, 16].Text.Trim(),
-                EmployeeNumber = worksheet.Cells[row, 17].Text.Trim(),
-                MonthlySalary = TryParseDecimal(worksheet.Cells[row, 18].Text),
-                Allowances = TryParseDecimal(worksheet.Cells[row, 19].Text),
+                FirstName = worksheet.Cell(row, 1).GetString().Trim(),
+                SecondName = worksheet.Cell(row, 2).GetString().Trim(),
+                ThirdName = worksheet.Cell(row, 3).GetString().Trim(),
+                ForthName = worksheet.Cell(row, 4).GetString().Trim(),
+                LastName = worksheet.Cell(row, 5).GetString().Trim(),
+                MotherName = worksheet.Cell(row, 6).GetString().Trim(),
+                Gender = worksheet.Cell(row, 7).GetString().Trim(),
+                DateOfBirth = ParseDate(worksheet.Cell(row, 8).GetString()) ?? DateTime.MinValue,
+                Nationality = worksheet.Cell(row, 9).GetString().Trim(),
+                JobService = worksheet.Cell(row, 10).GetString().Trim(),
+                Education = worksheet.Cell(row, 11).GetString().Trim(),
+                Country = worksheet.Cell(row, 12).GetString().Trim(),
+                Address = worksheet.Cell(row, 13).GetString().Trim(),
+                HiringDate = ParseDate(worksheet.Cell(row, 14).GetString()) ?? DateTime.MinValue,
+                HiringType = worksheet.Cell(row, 15).GetString().Trim(),
+                WorkplaceAddress = worksheet.Cell(row, 16).GetString().Trim(),
+                EmployeeNumber = worksheet.Cell(row, 17).GetString().Trim(),
+                MonthlySalary = TryParseDecimal(worksheet.Cell(row, 18).GetString()),
+                Allowances = TryParseDecimal(worksheet.Cell(row, 19).GetString()),
             };
         }
+
         private decimal TryParseDecimal(string decimalText)
         {
             return decimal.TryParse(decimalText, out var parsedDecimal) ? parsedDecimal : 0;
@@ -95,7 +114,11 @@ namespace CSVExcel.Service
             return null;
         }
 
-
+        private bool IsExcelFile(string fileName)
+        {
+            var extension = Path.GetExtension(fileName);
+            return extension == "x.ls" || extension == ".xlsx";
+        }
 
     }
 }

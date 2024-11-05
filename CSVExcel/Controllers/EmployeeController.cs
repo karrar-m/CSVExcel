@@ -1,6 +1,7 @@
 ﻿using CSVExcel.Exceptions;
 using CSVExcel.Interface;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading;
 
 namespace CSVExcel.Controllers
 {
@@ -11,12 +12,12 @@ namespace CSVExcel.Controllers
         private readonly IEmployeeService _employeeService = employeeService;
 
         [HttpPost("upload")]
-        public async Task<ActionResult> UploadEmployeeFile(IFormFile file)
+        public async Task<ActionResult> UploadFile(IFormFile file, CancellationToken cancellationToken)
         {
             try
             {
-                await _employeeService.ExcelEmployee(file);
-                return Ok(new { Message = "تم رفع الموظفين بنجاح" });
+              bool isupload =   await _employeeService.ExcelEmployee(file  ,cancellationToken);
+                return Ok(new {  isupload ,  Message = "تم رفع الموظفين بنجاح" });
             }
             catch (ExcelException ex)
             {
